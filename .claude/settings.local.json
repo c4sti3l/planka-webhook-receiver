@@ -5,7 +5,8 @@
       "Bash(podman ps:*)",
       "Bash(podman logs:*)",
       "Bash(git add:*)",
-      "Bash(git commit -m \"$\\(cat <<''EOF''\nInitial commit: Planka Webhook Receiver\n\n- Node.js/Express backend with SQLite database\n- Vue 3 frontend with Tailwind CSS and dark mode\n- Admin panel for SMTP, recipients, event filters, digest settings\n- Webhook endpoint for Planka events\n- Email digest notifications at configurable intervals\n- Containerfile and compose.yaml for Podman/Docker\n- GitHub Actions workflow for automated image builds\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nInitial commit: Planka Webhook Receiver\n\n- Node.js/Express backend with SQLite database\n- Vue 3 frontend with Tailwind CSS and dark mode\n- Admin panel for SMTP, recipients, event filters, digest settings\n- Webhook endpoint for Planka events\n- Email digest notifications at configurable intervals\n- Containerfile and compose.yaml for Podman/Docker\n- GitHub Actions workflow for automated image builds\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git commit:*)"
     ]
   }
 }
