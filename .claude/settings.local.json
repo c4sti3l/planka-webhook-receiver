@@ -6,7 +6,8 @@
       "Bash(podman logs:*)",
       "Bash(git add:*)",
       "Bash(git commit -m \"$\\(cat <<''EOF''\nInitial commit: Planka Webhook Receiver\n\n- Node.js/Express backend with SQLite database\n- Vue 3 frontend with Tailwind CSS and dark mode\n- Admin panel for SMTP, recipients, event filters, digest settings\n- Webhook endpoint for Planka events\n- Email digest notifications at configurable intervals\n- Containerfile and compose.yaml for Podman/Docker\n- GitHub Actions workflow for automated image builds\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(curl -X POST https://planka-webhook-receiver.h6c.de/api/webhook -H \"Content-Type: application/json\" -d '{\n    \"\"type\"\": \"\"cardCreate\"\",\n    \"\"user\"\": {\n      \"\"id\"\": \"\"user-123\"\",\n      \"\"name\"\": \"\"Max Mustermann\"\",\n      \"\"email\"\": \"\"max@example.com\"\"\n    },\n    \"\"item\"\": {\n      \"\"id\"\": \"\"card-456\"\",\n      \"\"name\"\": \"\"Neue Aufgabe testen\"\"\n    },\n    \"\"included\"\": {\n      \"\"boards\"\": [{\"\"id\"\": \"\"board-1\"\", \"\"name\"\": \"\"Projekt Alpha\"\"}],\n      \"\"lists\"\": [{\"\"id\"\": \"\"list-1\"\", \"\"name\"\": \"\"To Do\"\"}]\n    }\n  }')"
     ]
   }
 }
