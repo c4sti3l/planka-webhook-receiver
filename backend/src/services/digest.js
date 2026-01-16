@@ -4,6 +4,26 @@ import { sendMail, getRecipients } from './mailer.js';
 
 let cronJob = null;
 
+// German translations for event types
+const EVENT_LABELS = {
+  cardCreate: 'Karte erstellt',
+  cardUpdate: 'Karte aktualisiert',
+  cardDelete: 'Karte gelöscht',
+  cardMove: 'Karte verschoben',
+  commentCreate: 'Kommentar hinzugefügt',
+  commentUpdate: 'Kommentar bearbeitet',
+  commentDelete: 'Kommentar gelöscht',
+  attachmentCreate: 'Anhang hinzugefügt',
+  attachmentDelete: 'Anhang entfernt',
+  cardMembershipCreate: 'Mitglied hinzugefügt',
+  cardMembershipDelete: 'Mitglied entfernt',
+  listCreate: 'Liste erstellt',
+  listUpdate: 'Liste aktualisiert',
+  listDelete: 'Liste gelöscht',
+  boardCreate: 'Board erstellt',
+  boardUpdate: 'Board aktualisiert'
+};
+
 export function getDigestSettings() {
   const db = getDb();
   return db.prepare('SELECT * FROM digest_settings LIMIT 1').get();
@@ -12,8 +32,6 @@ export function getDigestSettings() {
 export function updateDigestSettings(intervalMinutes) {
   const db = getDb();
   db.prepare('UPDATE digest_settings SET interval_minutes = ? WHERE id = 1').run(intervalMinutes);
-
-  // Restart cron job with new interval
   startDigestJob();
 }
 
@@ -65,59 +83,90 @@ export function markEventsProcessed(ids) {
   db.prepare(`UPDATE event_queue SET processed = 1 WHERE id IN (${placeholders})`).run(...ids);
 }
 
+// Extract user email from event payload
+function getTriggerUserEmail(payload) {
+  return payload.user?.email ||
+         payload.included?.users?.[0]?.email ||
+         '';
+}
+
+// Extract readable data from payload
+function extractEventInfo(payload) {
+  return {
+    userName: payload.user?.name || payload.included?.users?.[0]?.name || 'Unbekannt',
+    userEmail: getTriggerUserEmail(payload),
+    cardName: payload.item?.name || payload.included?.cards?.[0]?.name || '',
+    boardName: payload.included?.boards?.[0]?.name || '',
+    listName: payload.included?.lists?.[0]?.name || '',
+    comment: payload.item?.text || '',
+    attachment: payload.item?.name || ''
+  };
+}
+
+// Format single event for email (German, user-friendly)
 function formatEventForEmail(event) {
   const payload = JSON.parse(event.payload);
-  const time = new Date(event.received_at).toLocaleString('de-DE');
+  const info = extractEventInfo(payload);
 
-  let title = event.event_type;
+  const eventLabel = EVENT_LABELS[event.event_type] || event.event_type;
+  const time = new Date(event.received_at).toLocaleString('de-DE', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }) + ' Uhr';
+
+  // Build details based on event type
   let details = '';
-
-  // Format based on event type
-  switch (event.event_type) {
-    case 'cardCreate':
-      title = 'Card Created';
-      details = `<strong>${payload.item?.name || 'Unknown'}</strong>`;
-      if (payload.included?.lists?.[0]?.name) {
-        details += ` in list <em>${payload.included.lists[0].name}</em>`;
-      }
-      break;
-    case 'cardUpdate':
-      title = 'Card Updated';
-      details = `<strong>${payload.item?.name || 'Unknown'}</strong>`;
-      break;
-    case 'cardDelete':
-      title = 'Card Deleted';
-      details = `<strong>${payload.item?.name || 'Unknown'}</strong>`;
-      break;
-    case 'commentCreate':
-      title = 'New Comment';
-      details = `<strong>${payload.item?.text || ''}</strong>`;
-      if (payload.included?.cards?.[0]?.name) {
-        details += ` on card <em>${payload.included.cards[0].name}</em>`;
-      }
-      break;
-    case 'cardMembershipCreate':
-      title = 'Member Added to Card';
-      if (payload.included?.users?.[0]?.name && payload.included?.cards?.[0]?.name) {
-        details = `<strong>${payload.included.users[0].name}</strong> added to <em>${payload.included.cards[0].name}</em>`;
-      }
-      break;
-    case 'attachmentCreate':
-      title = 'Attachment Added';
-      details = `<strong>${payload.item?.name || 'Unknown'}</strong>`;
-      break;
-    default:
-      details = `Event: ${event.event_type}`;
+  if (event.event_type === 'commentCreate' && info.comment) {
+    details = `<tr><td style="color: #666; padding: 2px 8px 2px 0;">Inhalt:</td><td>${info.comment.substring(0, 200)}${info.comment.length > 200 ? '...' : ''}</td></tr>`;
   }
 
   return `
-    <tr>
-      <td style="padding: 10px; border-bottom: 1px solid #eee;">
-        <strong>${title}</strong><br>
-        <span style="color: #666;">${details}</span><br>
-        <small style="color: #999;">${time}</small>
-      </td>
-    </tr>
+    <div style="border-left: 4px solid #6366f1; padding: 12px 16px; margin: 12px 0; background: #fafafa; border-radius: 0 8px 8px 0;">
+      <div style="font-weight: 600; font-size: 15px; color: #1f2937; margin-bottom: 8px;">
+        ${eventLabel}
+      </div>
+      <table style="font-size: 14px; color: #374151; line-height: 1.6;">
+        ${info.cardName ? `<tr><td style="color: #666; padding: 2px 8px 2px 0; vertical-align: top;">Karte:</td><td><strong>${info.cardName}</strong></td></tr>` : ''}
+        ${info.boardName ? `<tr><td style="color: #666; padding: 2px 8px 2px 0;">Board:</td><td>${info.boardName}</td></tr>` : ''}
+        ${info.listName ? `<tr><td style="color: #666; padding: 2px 8px 2px 0;">Spalte:</td><td>${info.listName}</td></tr>` : ''}
+        <tr><td style="color: #666; padding: 2px 8px 2px 0;">Von:</td><td>${info.userName}</td></tr>
+        <tr><td style="color: #666; padding: 2px 8px 2px 0;">Datum:</td><td>${time}</td></tr>
+        ${details}
+      </table>
+    </div>
+  `;
+}
+
+// Generate digest HTML for a list of events
+function generateDigestHtml(events, recipientName) {
+  const eventHtml = events.map(formatEventForEmail).join('');
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f3f4f6;">
+      <div style="background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <h2 style="color: #1f2937; border-bottom: 2px solid #6366f1; padding-bottom: 12px; margin-top: 0;">
+          Planka Aktivitäten
+        </h2>
+        ${recipientName ? `<p style="color: #6b7280; margin-bottom: 16px;">Hallo ${recipientName},</p>` : ''}
+        <p style="color: #6b7280; margin-bottom: 20px;">
+          ${events.length === 1 ? 'Es gibt eine neue Aktivität' : `Es gibt ${events.length} neue Aktivitäten`} in deinen Projekten:
+        </p>
+        ${eventHtml}
+        <p style="color: #9ca3af; font-size: 12px; margin-top: 24px; padding-top: 16px; border-top: 1px solid #e5e7eb;">
+          Diese E-Mail wurde automatisch von deinem Planka Webhook Receiver versendet.
+        </p>
+      </div>
+    </body>
+    </html>
   `;
 }
 
@@ -131,55 +180,58 @@ async function processDigest() {
   const recipients = getRecipients(true);
 
   if (recipients.length === 0) {
-    console.log('No active recipients, skipping digest');
+    console.log('[DIGEST] No active recipients, skipping');
     return;
   }
 
-  const eventRows = events.map(formatEventForEmail).join('');
+  console.log(`[DIGEST] Processing ${events.length} events for ${recipients.length} recipient(s)`);
 
-  const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-    </head>
-    <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #333; border-bottom: 2px solid #4f46e5; padding-bottom: 10px;">
-        Planka Activity Digest
-      </h2>
-      <p style="color: #666;">
-        You have ${events.length} new notification${events.length > 1 ? 's' : ''}:
-      </p>
-      <table style="width: 100%; border-collapse: collapse;">
-        ${eventRows}
-      </table>
-      <p style="color: #999; font-size: 12px; margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px;">
-        This is an automated digest from your Planka Webhook Receiver.
-      </p>
-    </body>
-    </html>
-  `;
+  // Process each recipient separately (to filter out their own actions)
+  for (const recipient of recipients) {
+    // Filter events: exclude events triggered by this recipient
+    const relevantEvents = events.filter(event => {
+      const payload = JSON.parse(event.payload);
+      const triggerEmail = getTriggerUserEmail(payload);
 
-  const subject = `Planka Digest: ${events.length} new notification${events.length > 1 ? 's' : ''}`;
-  const recipientEmails = recipients.map(r => r.email).join(', ');
+      // If trigger email matches recipient email, skip this event for them
+      if (triggerEmail && triggerEmail.toLowerCase() === recipient.email.toLowerCase()) {
+        console.log(`[DIGEST] Skipping event for ${recipient.email} (own action)`);
+        return false;
+      }
+      return true;
+    });
 
-  try {
-    await sendMail(recipientEmails, subject, html);
-    markEventsProcessed(events.map(e => e.id));
+    if (relevantEvents.length === 0) {
+      console.log(`[DIGEST] No relevant events for ${recipient.email}`);
+      continue;
+    }
 
-    // Update last sent time
-    const db = getDb();
-    db.prepare('UPDATE digest_settings SET last_sent_at = ? WHERE id = 1')
-      .run(new Date().toISOString());
+    const subject = relevantEvents.length === 1
+      ? 'Planka: Neue Aktivität'
+      : `Planka: ${relevantEvents.length} neue Aktivitäten`;
 
-    console.log(`Digest sent to ${recipients.length} recipient(s) with ${events.length} event(s)`);
-  } catch (error) {
-    console.error('Failed to send digest:', error.message);
+    const html = generateDigestHtml(relevantEvents, recipient.name);
+
+    try {
+      await sendMail(recipient.email, subject, html);
+      console.log(`[DIGEST] Sent ${relevantEvents.length} event(s) to ${recipient.email}`);
+    } catch (error) {
+      console.error(`[DIGEST] Failed to send to ${recipient.email}:`, error.message);
+    }
   }
+
+  // Mark all events as processed
+  markEventsProcessed(events.map(e => e.id));
+
+  // Update last sent time
+  const db = getDb();
+  db.prepare('UPDATE digest_settings SET last_sent_at = ? WHERE id = 1')
+    .run(new Date().toISOString());
+
+  console.log(`[DIGEST] Completed, marked ${events.length} event(s) as processed`);
 }
 
 export function startDigestJob() {
-  // Stop existing job if any
   if (cronJob) {
     cronJob.stop();
   }
@@ -187,16 +239,14 @@ export function startDigestJob() {
   const settings = getDigestSettings();
   const interval = settings.interval_minutes || 15;
 
-  // Create cron expression for interval
-  // Run every X minutes
   const cronExpression = `*/${interval} * * * *`;
 
   cronJob = cron.schedule(cronExpression, async () => {
-    console.log('Running digest job...');
+    console.log('[DIGEST] Running scheduled digest job...');
     await processDigest();
   });
 
-  console.log(`Digest job started, running every ${interval} minutes`);
+  console.log(`[DIGEST] Job started, running every ${interval} minutes`);
 }
 
 export async function triggerDigestNow() {
