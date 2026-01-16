@@ -165,17 +165,31 @@ const changes = computed(() => {
 
   const dataItem = props.event.payload?.data?.item
   const prevItem = props.event.payload?.prevData?.item
-  const included = props.event.payload?.data?.included || {}
+  const includedNow = props.event.payload?.data?.included || {}
+  const includedPrev = props.event.payload?.prevData?.included || {}
 
   if (!dataItem || !prevItem) {
     return []
   }
 
-  const resolveList = id =>
-      included.lists?.find(l => l.id === id)?.name || id
+  const resolveList = (id, source = 'now') => {
+    const lists =
+        source === 'prev'
+            ? includedPrev.lists
+            : includedNow.lists
 
-  const resolveBoard = id =>
-      included.boards?.find(b => b.id === id)?.name || id
+    return lists?.find(l => l.id === id)?.name || id
+  }
+
+  const resolveBoard = (id, source = 'now') => {
+    const boards =
+        source === 'prev'
+            ? includedPrev.boards
+            : includedNow.boards
+
+    return boards?.find(b => b.id === id)?.name || id
+  }
+
 
   const fields = [
     {
@@ -215,8 +229,12 @@ const changes = computed(() => {
           field: f.key,
           label: f.label,
           type: f.type,
-          before: f.map ? f.map(beforeRaw) : beforeRaw,
-          after: f.map ? f.map(afterRaw) : afterRaw
+          before: f.map
+              ? f.map(beforeRaw, 'prev')
+              : beforeRaw,
+          after: f.map
+              ? f.map(afterRaw, 'now')
+              : afterRaw
         }
       })
       .filter(Boolean)
@@ -225,17 +243,6 @@ const changes = computed(() => {
 
 function formatDate(value) {
   return new Date(value).toLocaleString('de-DE')
-}
-
-function afterClass(type) {
-  switch (type) {
-    case 'move':
-      return 'text-blue-600 dark:text-blue-400'
-    case 'multiline':
-      return 'text-indigo-600 dark:text-indigo-400'
-    default:
-      return 'text-green-600 dark:text-green-100'
-  }
 }
 
 </script>
