@@ -35,3 +35,36 @@
     @apply block text-sm font-medium text-gray-700 mb-1 dark:text-neutral-400;
   }
 }
+/* Dark elegant scrollbar (scoped via class) */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #3f3f46 transparent; /* thumb / track (Firefox) */
+}
+
+/* Chrome, Edge, Safari */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #3f3f46; /* zinc-700 */
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: #52525b; /* zinc-600 */
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(63,63,70,0.6);
+}
+
+.custom-scrollbar:hover::-webkit-scrollbar-thumb {
+  background-color: #52525b;
+}

@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-gray-100 dark:bg-black transition-colors">
+  <div class="h-screen flex flex-col bg-gray-100 dark:bg-black transition-colors">
     <nav v-if="authStore.isAuthenticated" class="bg-indigo-600 dark:bg-neutral-900 dark:border-b dark:border-neutral-800 text-white shadow-lg">
       <div class="max-w-7xl mx-auto px-4">
         <div class="flex justify-between h-16 items-center">
@@ -34,16 +34,16 @@
       </div>
     </nav>
 
-    <main class="max-w-7xl mx-auto px-4 py-8">
-      <router-view />
+    <main class="flex-1 min-h-0 max-w-7xl mx-auto px-4 py-8 w-full">
+      <router-view class="h-full"/>
     </main>
   </div>
 </template>
 
 <script setup>
-import { useAuthStore } from './stores/auth'
-import { useThemeStore } from './stores/theme'
-import { useRouter } from 'vue-router'
+import {useAuthStore} from './stores/auth'
+import {useThemeStore} from './stores/theme'
+import {useRouter} from 'vue-router'
 
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
