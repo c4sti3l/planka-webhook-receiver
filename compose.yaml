@@ -1,0 +1,19 @@
+services:
+  planka-webhook-receiver:
+    build:
+      context: .
+      dockerfile: Containerfile
+    container_name: planka-webhook-receiver
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - JWT_SECRET=${JWT_SECRET:-change-me-to-a-secure-random-string}
+      - ADMIN_INITIAL_PASSWORD=${ADMIN_INITIAL_PASSWORD:-admin123}
+      - DATABASE_PATH=/app/data/database.sqlite
+      # Optional: Set a webhook secret for additional security
+      # - WEBHOOK_SECRET=${WEBHOOK_SECRET}
