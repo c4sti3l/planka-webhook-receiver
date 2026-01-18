@@ -7,6 +7,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const digest = ref(null)
   const recipients = ref([])
   const filters = ref([])
+  const knownProjects = ref([])
 
   async function loadSmtp() {
     const response = await api.get('/settings/smtp')
@@ -70,11 +71,34 @@ export const useSettingsStore = defineStore('settings', () => {
     await loadFilters()
   }
 
+  async function loadKnownProjects() {
+    const response = await api.get('/settings/projects')
+    knownProjects.value = response.data
+    return knownProjects.value
+  }
+
+  async function loadRecipientProjects(recipientId) {
+    const response = await api.get(`/settings/recipients/${recipientId}/projects`)
+    return response.data
+  }
+
+  async function addRecipientProject(recipientId, projectId, projectName) {
+    await api.post(`/settings/recipients/${recipientId}/projects`, {
+      project_id: projectId,
+      project_name: projectName
+    })
+  }
+
+  async function removeRecipientProject(recipientId, projectId) {
+    await api.delete(`/settings/recipients/${recipientId}/projects/${projectId}`)
+  }
+
   return {
     smtp,
     digest,
     recipients,
     filters,
+    knownProjects,
     loadSmtp,
     saveSmtp,
     testSmtp,
@@ -86,6 +110,10 @@ export const useSettingsStore = defineStore('settings', () => {
     updateRecipient,
     deleteRecipient,
     loadFilters,
-    updateFilter
+    updateFilter,
+    loadKnownProjects,
+    loadRecipientProjects,
+    addRecipientProject,
+    removeRecipientProject
   }
 })

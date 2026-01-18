@@ -91,23 +91,90 @@
         </div>
 
         <div v-else class="divide-y divide-gray-200 dark:divide-neutral-800">
-          <div v-for="recipient in recipients" :key="recipient.id" class="py-3 flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-              <input
-                type="checkbox"
-                :checked="recipient.active"
-                @change="toggleRecipient(recipient)"
-                class="rounded text-indigo-600"
-              />
-              <div>
-                <div class="font-medium text-gray-800 dark:text-white">{{ recipient.email }}</div>
-                <div v-if="recipient.name" class="text-sm text-gray-600 dark:text-neutral-500">{{ recipient.name }}</div>
+          <div v-for="recipient in recipients" :key="recipient.id" class="py-3">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-3">
+                <input
+                  type="checkbox"
+                  :checked="recipient.active"
+                  @change="toggleRecipient(recipient)"
+                  class="rounded text-indigo-600"
+                />
+                <div>
+                  <div class="font-medium text-gray-800 dark:text-white">{{ recipient.email }}</div>
+                  <div v-if="recipient.name" class="text-sm text-gray-600 dark:text-neutral-500">{{ recipient.name }}</div>
+                </div>
+              </div>
+              <div class="flex items-center space-x-2">
+                <button
+                  @click="openProjectsModal(recipient)"
+                  class="text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300"
+                >
+                  Projekte
+                </button>
+                <button @click="removeRecipient(recipient.id)" class="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300">
+                  Remove
+                </button>
               </div>
             </div>
-            <button @click="removeRecipient(recipient.id)" class="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300">
-              Remove
-            </button>
+            <!-- Project badges -->
+            <div v-if="recipientProjects[recipient.id]?.length" class="mt-2 ml-8 flex flex-wrap gap-1">
+              <span
+                v-for="project in recipientProjects[recipient.id]"
+                :key="project.project_id"
+                class="px-2 py-0.5 text-xs bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded"
+              >
+                {{ project.project_name }}
+              </span>
+            </div>
+            <div v-else class="mt-1 ml-8 text-xs text-gray-500 dark:text-neutral-500">
+              Alle Projekte (keine Einschränkung)
+            </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Projects Modal -->
+    <div
+      v-if="showProjectsModal"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      @click.self="closeProjectsModal"
+    >
+      <div class="bg-white dark:bg-neutral-900 rounded-lg p-6 max-w-md w-full mx-4 max-h-[80vh] overflow-y-auto">
+        <h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-4">
+          Projekte für {{ selectedRecipient?.email }}
+        </h3>
+
+        <p class="text-sm text-gray-600 dark:text-neutral-400 mb-4">
+          Wähle die Projekte aus, für die dieser Empfänger Benachrichtigungen erhalten soll.
+          Ohne Auswahl werden alle Projekte benachrichtigt.
+        </p>
+
+        <div v-if="knownProjects.length === 0" class="text-gray-500 dark:text-neutral-500 text-sm">
+          Keine Projekte gefunden. Projekte werden automatisch aus eingehenden Events erkannt.
+        </div>
+
+        <div v-else class="space-y-2">
+          <label
+            v-for="project in knownProjects"
+            :key="project.id"
+            class="flex items-center space-x-3 p-2 rounded hover:bg-gray-100 dark:hover:bg-neutral-800 cursor-pointer"
+          >
+            <input
+              type="checkbox"
+              :checked="isProjectAssigned(project.id)"
+              @change="toggleProject(project)"
+              class="rounded text-indigo-600"
+            />
+            <span class="text-gray-800 dark:text-white">{{ project.name }}</span>
+          </label>
+        </div>
+
+        <div class="mt-6 flex justify-end">
+          <button @click="closeProjectsModal" class="btn btn-secondary">
+            Schließen
+          </button>
         </div>
       </div>
     </div>
@@ -175,6 +242,11 @@ const passwordMessage = ref('')
 const passwordError = ref(false)
 
 const recipients = computed(() => settingsStore.recipients)
+const knownProjects = computed(() => settingsStore.knownProjects)
+
+const showProjectsModal = ref(false)
+const selectedRecipient = ref(null)
+const recipientProjects = ref({})
 
 onMounted(async () => {
   const smtpData = await settingsStore.loadSmtp()
@@ -184,7 +256,15 @@ onMounted(async () => {
   digestInterval.value = digestData.interval_minutes
 
   await settingsStore.loadRecipients()
+  await settingsStore.loadKnownProjects()
+  await loadAllRecipientProjects()
 })
+
+async function loadAllRecipientProjects() {
+  for (const recipient of settingsStore.recipients) {
+    recipientProjects.value[recipient.id] = await settingsStore.loadRecipientProjects(recipient.id)
+  }
+}
 
 async function saveSmtp() {
   savingSmtp.value = true
@@ -247,6 +327,36 @@ async function toggleRecipient(recipient) {
 async function removeRecipient(id) {
   if (!confirm('Remove this recipient?')) return
   await settingsStore.deleteRecipient(id)
+}
+
+async function openProjectsModal(recipient) {
+  selectedRecipient.value = recipient
+  showProjectsModal.value = true
+}
+
+function closeProjectsModal() {
+  showProjectsModal.value = false
+  selectedRecipient.value = null
+}
+
+function isProjectAssigned(projectId) {
+  const projects = recipientProjects.value[selectedRecipient.value?.id] || []
+  return projects.some(p => p.project_id === projectId)
+}
+
+async function toggleProject(project) {
+  if (!selectedRecipient.value) return
+
+  const recipientId = selectedRecipient.value.id
+
+  if (isProjectAssigned(project.id)) {
+    await settingsStore.removeRecipientProject(recipientId, project.id)
+  } else {
+    await settingsStore.addRecipientProject(recipientId, project.id, project.name)
+  }
+
+  // Reload projects for this recipient
+  recipientProjects.value[recipientId] = await settingsStore.loadRecipientProjects(recipientId)
 }
 
 async function changePassword() {

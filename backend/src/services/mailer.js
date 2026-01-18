@@ -111,3 +111,48 @@ export function deleteRecipient(id) {
   const db = getDb();
   return db.prepare('DELETE FROM recipients WHERE id = ?').run(id);
 }
+
+// Recipient Projects Management
+export function getRecipientProjects(recipientId) {
+  const db = getDb();
+  return db.prepare('SELECT * FROM recipient_projects WHERE recipient_id = ?').all(recipientId);
+}
+
+export function addRecipientProject(recipientId, projectId, projectName) {
+  const db = getDb();
+  return db.prepare(`
+    INSERT OR IGNORE INTO recipient_projects (recipient_id, project_id, project_name)
+    VALUES (?, ?, ?)
+  `).run(recipientId, projectId, projectName);
+}
+
+export function removeRecipientProject(recipientId, projectId) {
+  const db = getDb();
+  return db.prepare('DELETE FROM recipient_projects WHERE recipient_id = ? AND project_id = ?')
+    .run(recipientId, projectId);
+}
+
+export function getKnownProjects() {
+  const db = getDb();
+  // Extract unique projects from event payloads
+  const events = db.prepare('SELECT payload FROM event_queue').all();
+  const projectsMap = new Map();
+
+  for (const event of events) {
+    try {
+      const payload = JSON.parse(event.payload);
+      const included = payload.data?.included || {};
+      const projects = included.projects || [];
+
+      for (const project of projects) {
+        if (project.id && project.name) {
+          projectsMap.set(project.id, project.name);
+        }
+      }
+    } catch (e) {
+      // Skip invalid payloads
+    }
+  }
+
+  return Array.from(projectsMap.entries()).map(([id, name]) => ({ id, name }));
+}

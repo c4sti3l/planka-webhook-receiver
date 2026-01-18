@@ -1,6 +1,6 @@
 import cron from 'node-cron';
 import { getDb } from './database.js';
-import { sendMail, getRecipients } from './mailer.js';
+import { sendMail, getRecipients, getRecipientProjects } from './mailer.js';
 
 let cronJob = null;
 
@@ -10,18 +10,24 @@ const EVENT_LABELS = {
   cardUpdate: 'Karte aktualisiert',
   cardDelete: 'Karte gelöscht',
   cardMove: 'Karte verschoben',
+  cardLabelCreate: 'Label hinzugefügt',
+  cardMembershipCreate: 'Mitglied hinzugefügt',
+  cardMembershipDelete: 'Mitglied entfernt',
   commentCreate: 'Kommentar hinzugefügt',
   commentUpdate: 'Kommentar bearbeitet',
   commentDelete: 'Kommentar gelöscht',
   attachmentCreate: 'Anhang hinzugefügt',
   attachmentDelete: 'Anhang entfernt',
-  cardMembershipCreate: 'Mitglied hinzugefügt',
-  cardMembershipDelete: 'Mitglied entfernt',
   listCreate: 'Liste erstellt',
   listUpdate: 'Liste aktualisiert',
   listDelete: 'Liste gelöscht',
   boardCreate: 'Board erstellt',
-  boardUpdate: 'Board aktualisiert'
+  boardUpdate: 'Board aktualisiert',
+  notificationCreate: 'Benachrichtigung erstellt',
+  notificationUpdate: 'Benachrichtigung aktualisiert',
+  webhookUpdate: 'Webhook aktualisiert',
+  webhookDelete: 'Webhook gelöscht',
+  userUpdate: 'Benutzer aktualisiert'
 };
 
 export function getDigestSettings() {
@@ -267,9 +273,13 @@ async function processDigest() {
 
   console.log(`[DIGEST] Processing ${events.length} events for ${recipients.length} recipient(s)`);
 
-  // Process each recipient separately (to filter out their own actions)
+  // Process each recipient separately (to filter out their own actions and by project access)
   for (const recipient of recipients) {
-    // Filter events: exclude events triggered by this recipient
+    // Get allowed projects for this recipient
+    const allowedProjects = getRecipientProjects(recipient.id);
+    const hasProjectRestriction = allowedProjects.length > 0;
+
+    // Filter events: exclude own actions and filter by project access
     const relevantEvents = events.filter(event => {
       const payload = JSON.parse(event.payload);
       const triggerEmail = getTriggerUserEmail(payload);
@@ -279,6 +289,21 @@ async function processDigest() {
         console.log(`[DIGEST] Skipping event for ${recipient.email} (own action)`);
         return false;
       }
+
+      // Project-based filtering
+      if (hasProjectRestriction) {
+        const data = payload.data;
+        const included = data?.included || {};
+        const board = included.boards?.find(b => b.id === data?.item?.boardId);
+        const project = included.projects?.find(p => p.id === board?.projectId);
+        const projectId = project?.id;
+
+        if (projectId && !allowedProjects.some(p => p.project_id === projectId)) {
+          console.log(`[DIGEST] Skipping event for ${recipient.email} (no access to project ${project?.name})`);
+          return false;
+        }
+      }
+
       return true;
     });
 

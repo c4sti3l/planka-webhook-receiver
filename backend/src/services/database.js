@@ -60,6 +60,15 @@ export function initDatabase(dbPath) {
       received_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       processed INTEGER DEFAULT 0
     );
+
+    CREATE TABLE IF NOT EXISTS recipient_projects (
+      id INTEGER PRIMARY KEY,
+      recipient_id INTEGER NOT NULL,
+      project_id TEXT NOT NULL,
+      project_name TEXT,
+      FOREIGN KEY (recipient_id) REFERENCES recipients(id) ON DELETE CASCADE,
+      UNIQUE(recipient_id, project_id)
+    );
   `);
 
   // Initialize default data if not exists
@@ -97,11 +106,17 @@ function initDefaults() {
     { type: 'cardDelete', description: 'Card deleted', enabled: 1 },
     { type: 'cardMembershipCreate', description: 'Member added to card', enabled: 1 },
     { type: 'cardMembershipDelete', description: 'Member removed from card', enabled: 0 },
+    { type: 'cardLabelCreate', description: 'Label added to card', enabled: 0 },
     { type: 'commentCreate', description: 'Comment added', enabled: 1 },
     { type: 'attachmentCreate', description: 'Attachment added', enabled: 0 },
     { type: 'listCreate', description: 'List created', enabled: 0 },
     { type: 'listUpdate', description: 'List updated', enabled: 0 },
     { type: 'listDelete', description: 'List deleted', enabled: 0 },
+    { type: 'notificationCreate', description: 'Notification created', enabled: 0 },
+    { type: 'notificationUpdate', description: 'Notification updated', enabled: 0 },
+    { type: 'webhookUpdate', description: 'Webhook updated', enabled: 0 },
+    { type: 'webhookDelete', description: 'Webhook deleted', enabled: 0 },
+    { type: 'userUpdate', description: 'User updated', enabled: 0 },
   ];
 
   const insertFilter = db.prepare(`

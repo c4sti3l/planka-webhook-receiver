@@ -119,7 +119,26 @@ const props = defineProps({
 const eventTypeMap = {
   cardCreate: 'Card Created',
   cardUpdate: 'Card Updated',
-  cardDelete: 'Card Deleted'
+  cardDelete: 'Card Deleted',
+  cardMove: 'Card Moved',
+  cardLabelCreate: 'Label Added',
+  cardMembershipCreate: 'Member Added',
+  cardMembershipDelete: 'Member Removed',
+  commentCreate: 'Comment Added',
+  commentUpdate: 'Comment Updated',
+  commentDelete: 'Comment Deleted',
+  attachmentCreate: 'Attachment Added',
+  attachmentDelete: 'Attachment Removed',
+  listCreate: 'List Created',
+  listUpdate: 'List Updated',
+  listDelete: 'List Deleted',
+  boardCreate: 'Board Created',
+  boardUpdate: 'Board Updated',
+  notificationCreate: 'Notification Created',
+  notificationUpdate: 'Notification Updated',
+  webhookUpdate: 'Webhook Updated',
+  webhookDelete: 'Webhook Deleted',
+  userUpdate: 'User Updated'
 }
 
 const actionTextMap = {

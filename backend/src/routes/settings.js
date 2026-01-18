@@ -7,7 +7,11 @@ import {
   addRecipient,
   updateRecipient,
   deleteRecipient,
-  sendTestMail
+  sendTestMail,
+  getRecipientProjects,
+  addRecipientProject,
+  removeRecipientProject,
+  getKnownProjects
 } from '../services/mailer.js';
 import {
   getDigestSettings,
@@ -136,6 +140,41 @@ router.delete('/recipients/:id', (req, res) => {
   const { id } = req.params;
   deleteRecipient(id);
   res.json({ success: true });
+});
+
+// Recipient Projects
+router.get('/recipients/:id/projects', (req, res) => {
+  const { id } = req.params;
+  const projects = getRecipientProjects(id);
+  res.json(projects);
+});
+
+router.post('/recipients/:id/projects', (req, res) => {
+  const { id } = req.params;
+  const { project_id, project_name } = req.body;
+
+  if (!project_id) {
+    return res.status(400).json({ error: 'Project ID required' });
+  }
+
+  try {
+    addRecipientProject(id, project_id, project_name);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete('/recipients/:id/projects/:projectId', (req, res) => {
+  const { id, projectId } = req.params;
+  removeRecipientProject(id, projectId);
+  res.json({ success: true });
+});
+
+// Known Projects (extracted from events)
+router.get('/projects', (req, res) => {
+  const projects = getKnownProjects();
+  res.json(projects);
 });
 
 // Event Filters
